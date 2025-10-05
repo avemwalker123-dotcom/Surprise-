@@ -1,0 +1,175 @@
+import tkinter as tk
+from tkinter import messagebox
+from PIL import Image, ImageTk
+import random
+
+# Create main window
+root = tk.Tk()
+root.title("Birthday Wish")
+root.geometry("800x800")  # slightly taller for spacing
+root.config(bg="#add8e6")  # light blue background
+
+# Global variables
+flicker_running = True
+smoke_particles = []
+confetti_pieces = []
+canvas = None
+friend_img = None
+flame_id = None
+blow_btn = None
+
+# Cake dimensions
+cake_width = 300
+cake_height = 130
+cake_top_height = 50
+candle_width = 15
+candle_height = 80
+
+# Ask if it's birthday
+def ask_birthday():
+    response = messagebox.askyesno("Question", "Is it your birthday today?")
+    if response:
+        show_cake()
+    else:
+        messagebox.showinfo("AHH! JHOOTH NHI")
+        root.destroy()
+
+def show_cake():
+    global friend_img, flame_id, canvas, flicker_running, blow_btn
+    canvas = tk.Canvas(root, width=800, height=800, bg="#add8e6", highlightthickness=0)
+    canvas.pack()
+
+    # Friend's image
+    friend = Image.open("birth.png").resize((500, 500))
+    friend_img = ImageTk.PhotoImage(friend)
+    image_x = 500
+    image_y = 450
+    canvas.create_image(image_x, image_y, image=friend_img)
+
+    # Cake 10 cm below image (~300px)
+    cake_x1 = image_x - cake_width//2
+    cake_y1 = image_y + 250
+    cake_x2 = image_x + cake_width//2
+    cake_y2 = cake_y1 + cake_height
+
+    # Top layer
+    cake_top_x1 = cake_x1 + 20
+    cake_top_y1 = cake_y1 - cake_top_height
+    cake_top_x2 = cake_x2 - 20
+    cake_top_y2 = cake_y1
+
+    # Draw cake
+    canvas.create_rectangle(cake_x1, cake_y1, cake_x2, cake_y2, fill="#ff9999", outline="black", width=3)
+    canvas.create_rectangle(cake_top_x1, cake_top_y1, cake_top_x2, cake_top_y2, fill="#ffcc99", outline="black", width=3)
+
+    # Candle
+    candle_x = image_x
+    candle_y_bottom = cake_top_y1
+    candle_y_top = candle_y_bottom - candle_height
+    canvas.create_rectangle(candle_x - candle_width//2, candle_y_top,
+                            candle_x + candle_width//2, candle_y_bottom, fill="yellow", outline="black")
+
+    # Flame
+    global flame_id
+    flame_id = canvas.create_oval(candle_x - candle_width//2, candle_y_top - 20,
+                                  candle_x + candle_width//2, candle_y_top, fill="orange", outline="red")
+
+    # Button 5 cm below cake (~200px)
+    def blow():
+        global flicker_running
+        flicker_running = False
+        canvas.delete(flame_id)
+        create_smoke()
+        create_confetti()
+        # Pass button_y to position message
+        show_message_typing(
+            "Happy Birthday SUMI(HANUMAN MANDIR)! May all your wishes come true. Become a future doctor to help those who are in  need.. OR BABHI SE KAB MILWAYEGA?( just kidding) Hope your day is amazing and you live a happy life. Sorry for the late wish. EK BAAR FIR SE, HAAPPY BIRTHDAY TO YOU!",
+            button_y
+        )
+
+    global blow_btn
+    button_y = cake_y2 + 150
+    blow_btn = tk.Button(root, text="Blow Candle!", font=("Comic Sans MS", 16),
+                         command=blow, bg="#ff9999")
+    blow_btn.place(x=image_x - 80, y=button_y)
+
+    # Start flickering flame
+    flicker_flame(candle_x, candle_y_top, candle_width)
+
+def flicker_flame(candle_x, candle_y_top, candle_width):
+    global flame_id, canvas, flicker_running
+    if flicker_running:
+        x1 = candle_x - candle_width//2 + random.randint(-2,2)
+        y1 = candle_y_top - 20 + random.randint(-3,3)
+        x2 = candle_x + candle_width//2 + random.randint(-2,2)
+        y2 = candle_y_top + random.randint(-3,3)
+        color = random.choice(["orange", "yellow", "gold", "red"])
+        canvas.coords(flame_id, x1, y1, x2, y2)
+        canvas.itemconfig(flame_id, fill=color, outline="red")
+        root.after(100, lambda: flicker_flame(candle_x, candle_y_top, candle_width))
+
+# Smoke
+def create_smoke():
+    global smoke_particles, canvas
+    for i in range(15):
+        x = 400 + random.randint(-5,5)
+        y = 230 + 300 - candle_height  # approximate flame top
+        size = random.randint(5, 15)
+        particle = canvas.create_oval(x, y, x+size, y+size, fill="gray", outline="")
+        smoke_particles.append({"id": particle, "speed": random.randint(1,3), "life": 20})
+    animate_smoke()
+
+def animate_smoke():
+    global smoke_particles, canvas
+    for particle in smoke_particles[:]:
+        canvas.move(particle["id"], 0, -particle["speed"])
+        particle["life"] -= 1
+        gray_value = max(0, 100 + particle["life"]*5)
+        color = f"#{gray_value:02x}{gray_value:02x}{gray_value:02x}"
+        canvas.itemconfig(particle["id"], fill=color)
+        if particle["life"] <= 0:
+            canvas.delete(particle["id"])
+            smoke_particles.remove(particle)
+    root.after(100, animate_smoke)
+
+# Confetti
+def create_confetti():
+    global confetti_pieces, canvas
+    colors = ["red", "yellow", "green", "pink", "orange", "purple"]
+    for i in range(50):
+        x = random.randint(0,800)
+        y = random.randint(-100,0)
+        size = random.randint(5,10)
+        confetti = canvas.create_rectangle(x, y, x+size, y+size, fill=random.choice(colors), outline="")
+        confetti_pieces.append((confetti, random.randint(2,5)))
+    move_confetti()
+
+def move_confetti():
+    global confetti_pieces, canvas
+    for confetti, speed in confetti_pieces:
+        canvas.move(confetti, 0, speed)
+        coords = canvas.coords(confetti)
+        if coords[1] > 800:
+            canvas.move(confetti, 0, -900)
+    root.after(50, move_confetti)
+
+# Message 6 cm below button (~180px)
+def show_message_typing(message, button_y):
+    label_y = button_y + 180
+    label = tk.Label(root, text="", font=("Algerian", 14), wraplength=700, justify="left", bg="#add8e6")
+    label.place(x=50, y=label_y)
+    text_len = len(message)
+    index = 0
+    def type_letter():
+        nonlocal index
+        if index < text_len:
+            label.config(text=label.cget("text") + message[index])
+            index += 1
+            root.after(50, type_letter)
+        else:
+            root.after(20000, root.destroy)
+    type_letter()
+
+# Run
+root.after(100, ask_birthday)
+root.mainloop()
